@@ -69,9 +69,15 @@ public class RealTimeMsgController {
             log.info("Message sent successfully to group: {} by userId: {}", groupId, req.getUserId());
 
             return createdMessages;
-        } catch (Exception e) {
+        } catch (ChatException e) {
             log.error("Error during send message process", e);
             throw new ChatException("Error during send message process" + e);
+        } catch (UserException e) {
+            log.error("Error during send message process", e);
+            throw new UserException("Error during send message process" + e);
+        } catch (MessagingException e) {
+            log.error("Error during send message process", e);
+            throw new MessagingException("Error during send message process" + e);
         }
     }
 

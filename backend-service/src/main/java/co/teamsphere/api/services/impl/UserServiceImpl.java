@@ -73,7 +73,7 @@ public class UserServiceImpl implements UserService {
                 }
 
                 responseEntity = cloudflareApiService.uploadImage(req.getProfile_picture());
-                if (!responseEntity.isSuccess() || responseEntity == null || responseEntity.getResult() == null || responseEntity.getResult().getVariants() == null || responseEntity.getResult().getVariants().isEmpty()) {
+                if (!responseEntity.isSuccess() || responseEntity.getResult() == null || responseEntity.getResult().getVariants() == null || responseEntity.getResult().getVariants().isEmpty()) {
                     log.warn("Error uploading new profile picture to Cloudflare");
                     throw new ProfileImageException("Error uploading new profile picture to Cloudflare");
                 }
@@ -90,12 +90,10 @@ public class UserServiceImpl implements UserService {
             log.info("User updated successfully. Updated user details: {}", updatedUser);
     
             return updatedUser;
-        }
-        catch (ProfileImageException e) {
+        } catch (ProfileImageException e) {
             log.error("Error updating user profile image: {}", e.getMessage());
             throw new UserException("Error updating user: " + e.getMessage());
-        }
-        catch (Exception e) {
+        } catch (UserException | IOException e) {
             log.error("Error updating user: {}", e.getMessage());
             throw new UserException("Error updating user: " + e.getMessage());
         }

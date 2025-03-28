@@ -20,11 +20,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer{
     @Value("${spring.rabbitmq.port}")
     private int port;
 
+    @SuppressWarnings("null")
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
     }
-
+    
+    @SuppressWarnings("null")
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableStompBrokerRelay("/group", "/user")

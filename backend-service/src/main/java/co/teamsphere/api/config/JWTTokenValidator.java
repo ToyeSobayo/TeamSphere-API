@@ -32,9 +32,10 @@ public class JWTTokenValidator extends OncePerRequestFilter {
         this.jwtProperties = jwtProperties;
     }
 
+    @SuppressWarnings("null")
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
+            @NotNull HttpServletRequest request,
             @NotNull HttpServletResponse response,
             @NotNull FilterChain filterChain
     ) throws ServletException, IOException {
@@ -73,7 +74,7 @@ public class JWTTokenValidator extends OncePerRequestFilter {
                 log.warn("Invalid JWT token: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
                 return;
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
                 log.error("Unexpected error during JWT validation: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unexpected error during JWT validation");
                 return;
