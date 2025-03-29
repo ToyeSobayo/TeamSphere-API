@@ -1,25 +1,26 @@
 package co.teamsphere.api.config;
+import java.io.IOException;
 import java.security.PublicKey;
 import java.util.List;
-import java.io.IOException;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
-import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.security.core.GrantedAuthority;
 
+import co.teamsphere.api.config.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JWTTokenValidator extends OncePerRequestFilter {
@@ -57,6 +58,10 @@ public class JWTTokenValidator extends OncePerRequestFilter {
                 if (!jwtProperties.getAudience().equals(audience)) {
                     throw new JwtException("Invalid audience: " + audience);
                 }
+                var httpRequest = (HttpServletRequest) request;
+                String ipAddr = httpRequest.getRemoteAddr();
+
+                log.info("request from this IP: {}", ipAddr);
 
                 String username = claim.getSubject();
                 String authorities = claim.get("authorities", String.class);

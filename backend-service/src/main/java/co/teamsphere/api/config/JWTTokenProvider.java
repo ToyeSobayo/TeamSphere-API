@@ -15,6 +15,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.springframework.stereotype.Service;
 
+import co.teamsphere.api.config.properties.JwtProperties;
+
 @Service
 @Slf4j
 public class JWTTokenProvider {

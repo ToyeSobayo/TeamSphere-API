@@ -13,6 +13,8 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import co.teamsphere.api.config.properties.JwtProperties;
+
 import java.io.IOException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;

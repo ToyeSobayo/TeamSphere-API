@@ -75,9 +75,6 @@ public class RealTimeMsgController {
         } catch (UserException e) {
             log.error("Error during send message process", e);
             throw new UserException("Error during send message process" + e);
-        } catch (MessagingException e) {
-            log.error("Error during send message process", e);
-            throw new MessagingException("Error during send message process" + e);
         }
     }
 

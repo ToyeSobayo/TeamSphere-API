@@ -1,5 +1,6 @@
 package co.teamsphere.api.services.impl;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
@@ -21,7 +22,6 @@ import co.teamsphere.api.request.UpdateUserRequest;
 import co.teamsphere.api.response.CloudflareApiResponse;
 import co.teamsphere.api.services.CloudflareApiService;
 import co.teamsphere.api.services.UserService;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -92,10 +92,13 @@ public class UserServiceImpl implements UserService {
             return updatedUser;
         } catch (ProfileImageException e) {
             log.error("Error updating user profile image: {}", e.getMessage());
-            throw new UserException("Error updating user: " + e.getMessage());
-        } catch (UserException | IOException e) {
+            throw new UserException("Error updating user image!");
+        } catch (UserException e) {
             log.error("Error updating user: {}", e.getMessage());
-            throw new UserException("Error updating user: " + e.getMessage());
+            throw new UserException("Error updating user!");
+        } catch (IOException e) {
+            log.error("Unexpected error during user update: {}", e.getMessage());
+            throw new UserException("Unexpected error during user update!");
         }
     }
 

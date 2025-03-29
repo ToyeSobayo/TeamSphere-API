@@ -1,8 +1,9 @@
-package co.teamsphere.api.config;
+package co.teamsphere.api.config.properties;
 
-import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+
+import lombok.Data;
 
 @Component
 @ConfigurationProperties(prefix = "jwt")
