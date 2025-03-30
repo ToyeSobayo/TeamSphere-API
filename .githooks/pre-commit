@@ -10,7 +10,7 @@ if [ $CHECKSTYLE_STATUS -ne 0 ]; then
     exit 1 
 fi
 
-echo "✅ Linter checks passed! Proceeding with runnign tests..."
+echo "✅ Linter checks passed! Proceeding with running tests..."
 
 echo "Running Tests..."
 
@@ -22,6 +22,6 @@ if [ $TEST_STATUS -ne 0 ]; then
     exit 1 
 fi
 
-echo "✅ Tests passed! Proceeding with commit..."
+echo "🚀 Tests passed! Proceeding with commit..."
 
 exit 0
