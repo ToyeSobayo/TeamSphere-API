@@ -35,3 +35,12 @@ app:
     ALLOWED_ORIGINS:
       - http://localhost:3000
       - http://localhost:4173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  info:
+    build:
+      enabled: true
