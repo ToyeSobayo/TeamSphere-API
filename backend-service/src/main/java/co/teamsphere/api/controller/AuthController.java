@@ -76,6 +76,25 @@ public class AuthController {
     }
 
     @GetMapping("/refreshTest")
+    @Operation(summary = "Refresh JWT Token", description = "Refresh JWT token with a refresh token.")
+    @ApiResponses(value = {
+        @ApiResponse(
+                responseCode = "200",
+                description = "Token refreshed successfully",
+                content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                        schema = @Schema(implementation = AuthResponse.class)
+                )
+            ),
+        @ApiResponse(
+                responseCode = "400",
+                description = "Token is invalid or not provided"
+            ),
+        @ApiResponse(
+                responseCode = "500",
+                description = "Something went wrong"
+            )
+    })
     public ResponseEntity<?> refreshTest(@RequestBody RefreshTokenRequest request) throws RefreshTokenException {
         try {
             // there is a way to do this with just optionals and maps, but you are a funny guy if you think im writing that out (its not readable)
@@ -85,22 +104,26 @@ public class AuthController {
             log.info("checking for refresh token: {}", refreshToken);
             if (refreshToken.isEmpty()) {
                 log.error("Refresh Token was not found: {}", request.getRefreshToken());
-                throw new RefreshTokenException("Refresh Token is not in DB..!!");
+                throw new RefreshTokenException("Refresh Token is not valid!");
             }
 
             log.info("Verifying expiration of refresh token");
             var rToken = refreshTokenService.verifyExpiration(refreshToken.get());
-            // TODO: create a new refresh token and delete the old one
             if (rToken == null) {
                 log.error("Refresh Token is expired: {}", request.getRefreshToken());
-                var msg = new AuthResponse("Invalid refresh Token", null, false);
+                var msg = new AuthResponse("Unauthorized", null, false);
                 return new ResponseEntity<>(msg, HttpStatus.UNAUTHORIZED);
             }
 
             log.info("Generating new JWT token");
             var user = rToken.getUser();
             String jwtToken = jwtTokenProvider.generateJwtTokenFromEmail(user.getEmail());
-            var auth = new AuthResponse(jwtToken, request.getRefreshToken(), true);
+            String newRefreshToken = refreshTokenService.replaceRefreshToken(user.getEmail());
+            if (newRefreshToken == null) {
+                log.error("Error during refresh token replacement");
+                throw new Exception("Error during refresh token replacement");
+            }
+            var auth = new AuthResponse(jwtToken, newRefreshToken, true);
 
             return new ResponseEntity<>(auth, HttpStatus.OK);
         } catch (RefreshTokenException e) {
@@ -108,7 +131,7 @@ public class AuthController {
             throw new RefreshTokenException("Token is invalid or not provided.");
         } catch (Exception e) {
             log.error("Error during JWT token verification: ", e);
-            throw new RefreshTokenException("Token is invalid or not provided.");
+            throw new RefreshTokenException("Something went Wrong.");
         }
     }
 

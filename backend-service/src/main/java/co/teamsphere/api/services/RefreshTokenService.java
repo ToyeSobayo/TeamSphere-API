@@ -4,9 +4,9 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
-import co.teamsphere.api.models.RefreshToken;
 import co.teamsphere.api.exception.RefreshTokenException;
 import co.teamsphere.api.exception.UserException;
+import co.teamsphere.api.models.RefreshToken;
 
 @Service
 public interface RefreshTokenService {
@@ -19,4 +19,6 @@ public interface RefreshTokenService {
     void deleteRefreshTokenByUserId(String userId);
 
     RefreshToken findByUserId(String userId);
+
+    String replaceRefreshToken(String userId);
 }

@@ -7,10 +7,10 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import co.teamsphere.api.models.User;
 import co.teamsphere.api.exception.RefreshTokenException;
 import co.teamsphere.api.exception.UserException;
 import co.teamsphere.api.models.RefreshToken;
+import co.teamsphere.api.models.User;
 import co.teamsphere.api.repository.RefreshTokenRepository;
 import co.teamsphere.api.repository.UserRepository;
 import co.teamsphere.api.services.RefreshTokenService;
@@ -51,6 +51,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     @Override
+    @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) throws RefreshTokenException {
         if(token.getExpiredAt().compareTo(Instant.now())<0){
             refreshTokenRepository.delete(token);
@@ -61,6 +62,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     @Override
+    @Transactional
     public void deleteRefreshTokenByUserId(String userId) {
         Optional<RefreshToken> user = refreshTokenRepository.findByUserId(UUID.fromString(userId));
 
@@ -70,6 +72,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RefreshToken findByUserId(String userId) {
         Optional<RefreshToken> potentialToken = refreshTokenRepository.findByUserId(UUID.fromString(userId));
 
@@ -78,5 +81,22 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         }
 
         return potentialToken.get();
+    }
+
+    @Override
+    @Transactional
+    public String replaceRefreshToken(String oldRefreshToken) {
+        try {
+            Optional<RefreshToken> token = refreshTokenRepository.findByRefreshToken(oldRefreshToken);
+            if(token.isEmpty()){
+                log.error("Refresh token not found with ID: {}", oldRefreshToken);
+                throw new UserException("Refresh token not found with ID: " + oldRefreshToken);
+            }
+            token.get().setRefreshToken(UUID.randomUUID().toString());
+            return refreshTokenRepository.save(token.get()).getRefreshToken();
+        } catch (UserException e) {
+            log.error("Error occurred while replacing refresh token for user with refreshToken: {}", oldRefreshToken);
+            return null;
+        }
     }
 }
