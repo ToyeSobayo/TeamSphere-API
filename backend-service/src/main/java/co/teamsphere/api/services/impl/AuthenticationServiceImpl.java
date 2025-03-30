@@ -26,7 +26,6 @@ import co.teamsphere.api.response.AuthResponse;
 import co.teamsphere.api.response.CloudflareApiResponse;
 import co.teamsphere.api.services.AuthenticationService;
 import co.teamsphere.api.services.CloudflareApiService;
-
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -115,9 +114,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
         catch (ProfileImageException e){
             log.error("ERROR: {}", e.getMessage());
-            throw new ProfileImageException("Error with profile image");
-        }
-        catch (IOException e) {
+            throw new ProfileImageException(e.getMessage());
+        } catch (IOException e) {
             log.error("Unexpected error during signup process", e);
             throw new UserException("Unexpected error during signup process");
         }

@@ -92,10 +92,10 @@ public class UserServiceImpl implements UserService {
             return updatedUser;
         } catch (ProfileImageException e) {
             log.error("Error updating user profile image: {}", e.getMessage());
-            throw new UserException("Error updating user image!");
+            throw new UserException("Error updating user: " + e.getMessage());
         } catch (UserException e) {
             log.error("Error updating user: {}", e.getMessage());
-            throw new UserException("Error updating user!");
+            throw new UserException("Error updating user: " + e.getMessage());
         } catch (IOException e) {
             log.error("Unexpected error during user update: {}", e.getMessage());
             throw new UserException("Unexpected error during user update!");
