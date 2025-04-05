@@ -1,7 +1,7 @@
 package co.teamsphere.api.services.impl;
 
-import java.time.LocalDateTime;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
@@ -112,25 +112,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             userRepository.save(newUser);
 
             // auto-login after signup
-            SecurityContext context = SecurityContextHolder.getContext();
-            Authentication authentication = authentication(request.getEmail(), request.getPassword());
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
-
-            if (!authentication.isAuthenticated()) {
-                log.warn("Authentication failed for user with username: {}", request.getEmail());
-                throw new BadCredentialsException("Invalid username or password.");
-            }
+            Authentication authentication = new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
             String token = jwtTokenProvider.generateJwtToken(authentication);
 
             log.info("Generating refresh token for user with ID: {}", newUser.getId());
-            var refreshToken = refreshTokenService.createRefreshToken(newUser.getEmail());
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(newUser.getEmail());
+
             return new AuthResponse(token, refreshToken.getRefreshToken(), true);
         }
         catch (UserException e) {
             log.error("Error during signup process", e);
-            throw new UserException("Error Signing up");
+            throw new UserException(e.getMessage());
         } catch (BadCredentialsException e) {
             log.error("Authentication failed for user with username: {}", request.getEmail());
             throw new BadCredentialsException("Invalid username or password.", e);
@@ -159,10 +153,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 throw new BadCredentialsException("Invalid username or password.");
             }
 
-            SecurityContext context = SecurityContextHolder.getContext();
             Authentication authentication = authentication(email, password);
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
             if (!authentication.isAuthenticated()) {
                 log.warn("Authentication failed for user with username: {}", email);
@@ -173,6 +165,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
             log.info("Generating refresh token for user with ID: {}", optionalUser.get().getId());
             RefreshToken refreshToken = createRefreshToken(optionalUser.get().getId().toString(), email);
+
             return new AuthResponse(token, refreshToken.getRefreshToken(), true);
         } catch (BadCredentialsException e) {
             log.warn("Authentication failed for user with username: {}", email);
@@ -227,6 +220,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (BadCredentialsException e) {
             log.error("Error during Google authentication: ", e);
             throw new BadCredentialsException("Error during Google authentication");
+        } catch (UserException e) {
+            log.error("Error during Google authentication: ", e);
+            throw new UserException("Error during Google authentication");
         } catch (Exception e) {
             log.error("Error during Google authentication: ", e);
             throw new UserException("Error during Google authentication");

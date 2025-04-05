@@ -1,11 +1,19 @@
 package co.teamsphere.api.controller;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +26,9 @@ import co.teamsphere.api.config.JWTTokenProvider;
 import co.teamsphere.api.exception.ProfileImageException;
 import co.teamsphere.api.exception.RefreshTokenException;
 import co.teamsphere.api.exception.UserException;
+import co.teamsphere.api.models.RefreshToken;
+import co.teamsphere.api.models.User;
+import co.teamsphere.api.repository.UserRepository;
 import co.teamsphere.api.request.LoginRequest;
 import co.teamsphere.api.request.RefreshTokenRequest;
 import co.teamsphere.api.request.SignupRequest;
@@ -25,11 +36,13 @@ import co.teamsphere.api.response.AuthResponse;
 import co.teamsphere.api.services.AuthenticationService;
 import co.teamsphere.api.services.RefreshTokenService;
 import co.teamsphere.api.utils.GoogleAuthRequest;
+import co.teamsphere.api.utils.GoogleUserInfo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,16 +53,24 @@ public class AuthController {
     private final JWTTokenProvider jwtTokenProvider;
 
     private final AuthenticationService authenticationService;
-    
+
     private final RefreshTokenService refreshTokenService;
+
+    private final UserRepository userRepository;
+
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(JWTTokenProvider jwtTokenProvider,
                           AuthenticationService authenticationService,
-                          RefreshTokenService refreshTokenService
+                          RefreshTokenService refreshTokenService,
+                          UserRepository userRepository,
+                          PasswordEncoder passwordEncoder
     ) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationService = authenticationService;
         this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/verify")
@@ -63,7 +84,7 @@ public class AuthController {
                 description = "Token is invalid or not provided"
             )
     })
-    public ResponseEntity<?> verifyJwtToken() {
+    public ResponseEntity<String> verifyJwtToken() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         // Check if the user is authenticated
@@ -171,6 +192,7 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/login")
     @Operation(summary = "Login a user", description = "Login with email and password.")
     @ApiResponses(value = {
         @ApiResponse(
@@ -183,7 +205,6 @@ public class AuthController {
             ),
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
-    @PostMapping("/login")
     public ResponseEntity<AuthResponse> userLoginMethod(
             @Schema(description = "Login request body", implementation = LoginRequest.class)
             @Valid @RequestBody LoginRequest loginRequest) throws UserException {
@@ -198,13 +219,14 @@ public class AuthController {
         } catch (BadCredentialsException e) {
             log.warn("Authentication failed for user with username: {}", loginRequest.getEmail());
             throw new UserException("Invalid username or password.");
-        } catch (Exception e) {
+        } catch (UserException e) {
             log.error("Unexpected error during login process", e);
             throw new UserException("Unexpected error during login process.");
         }
     }
 
     @PostMapping("/google")
+    @Transactional // move business logic to service layer
     @Operation(summary = "Authenticate via Google", description = "login/signup via Google OAuth.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200",
@@ -224,16 +246,63 @@ public class AuthController {
             @RequestPart("googleUser")
             @RequestBody GoogleAuthRequest request) {
         try {
-            log.info("Processing Google authentication request for user with email: {}", request.getGoogleUserInfo().getEmail());
+            log.info("Processing Google authentication request");
 
-            var authResponse = authenticationService.loginWithGoogle(request);
+            GoogleUserInfo googleUserInfo = request.getGoogleUserInfo();
 
-            log.info("Google authentication successful for user with email: {}", request.getGoogleUserInfo().getEmail());
+            String email = googleUserInfo.getEmail();
+            String username = googleUserInfo.getName();
+            String pictureUrl = googleUserInfo.getPicture();
 
+            // Check if user exists
+            User googleUser = null;
+            Optional<User> optionalUser = userRepository.findByEmail(email);
+            if (optionalUser.isPresent()) {
+                log.info("Existing user found with userId: {}", optionalUser.get().getId());
+                googleUser = optionalUser.get();
+            } else {
+                // Register a new user if not exists
+                var currentDateTime = LocalDateTime.now().atOffset(ZoneOffset.UTC);
+                var user = User.builder()
+                        .email(email)
+                        .username(username)
+                        .password(passwordEncoder.encode(UUID.randomUUID().toString())) // consider adding this cause a userpass field should NEVER be null
+                        .profilePicture(pictureUrl)
+                        .createdDate(currentDateTime)
+                        .lastUpdatedDate(currentDateTime)
+                        .build();
+
+                googleUser = userRepository.save(user);
+                log.info("New user created with email: {}", email);
+            }
+
+            if (googleUser == null) {
+                log.error("Error during Google authentication, user still came out as null");
+                return new ResponseEntity<>(new AuthResponse("This is still!", "", false), HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            // Load UserDetails and set authentication context
+            Authentication authentication = new UsernamePasswordAuthenticationToken(googleUser, null);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // Generate JWT token
+            String token = jwtTokenProvider.generateJwtToken(authentication);
+            RefreshToken refreshToken = createRefreshToken(googleUser.getId().toString(), email);
+
+            AuthResponse authResponse = new AuthResponse(token, refreshToken.getRefreshToken(), true);
             return new ResponseEntity<>(authResponse, HttpStatus.OK);
         } catch (Exception e) {
             log.error("Error during Google authentication: ", e);
-            return new ResponseEntity<>(new AuthResponse("Error during Google authentication: " + e.getMessage(), null, false), HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(new AuthResponse("Error during Google authentication!" + e.getMessage(), "", false), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private RefreshToken createRefreshToken(String userID, String email) throws UserException {
+        RefreshToken refreshToken = refreshTokenService.findByUserId(userID);
+        if (refreshToken == null || refreshToken.getExpiredAt().compareTo(Instant.now()) < 0) {
+            refreshToken = refreshTokenService.createRefreshToken(email);
+        }
+
+        return refreshToken;
     }
 }

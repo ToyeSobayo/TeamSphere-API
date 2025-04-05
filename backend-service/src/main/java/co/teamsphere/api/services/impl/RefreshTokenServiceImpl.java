@@ -88,7 +88,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public String replaceRefreshToken(String oldRefreshToken) {
         try {
             Optional<RefreshToken> token = refreshTokenRepository.findByRefreshToken(oldRefreshToken);
-            if(token.isEmpty()){
+            if(token.isEmpty() && !token.get().getRefreshToken().equals(oldRefreshToken)){
                 log.error("Refresh token not found with ID: {}", oldRefreshToken);
                 throw new UserException("Refresh token not found with ID: " + oldRefreshToken);
             }

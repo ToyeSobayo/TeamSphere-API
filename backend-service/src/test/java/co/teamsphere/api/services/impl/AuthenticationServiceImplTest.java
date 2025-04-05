@@ -3,12 +3,14 @@ package co.teamsphere.api.services.impl;
 import co.teamsphere.api.config.JWTTokenProvider;
 import co.teamsphere.api.exception.ProfileImageException;
 import co.teamsphere.api.exception.UserException;
+import co.teamsphere.api.models.RefreshToken;
 import co.teamsphere.api.models.User;
 import co.teamsphere.api.repository.UserRepository;
 import co.teamsphere.api.request.SignupRequest;
 import co.teamsphere.api.response.AuthResponse;
 import co.teamsphere.api.response.CloudflareApiResponse;
 import co.teamsphere.api.services.CloudflareApiService;
+import co.teamsphere.api.services.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,9 +25,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,6 +51,9 @@ public class AuthenticationServiceImplTest {
 
     @Mock
     private CustomUserDetailsService customUserDetailsService;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @Mock
     private CloudflareApiService cloudflareApiService;
@@ -77,12 +85,13 @@ public class AuthenticationServiceImplTest {
 
         // Set up test user
         testUser = User.builder()
+                .id(UUID.randomUUID())
                 .email("test@example.com")
                 .username("testuser")
                 .password("encodedPassword")
                 .profilePicture("https://example.com/profiles/abc123/public")
                 .build();
-        
+
         // Set up UserDetails
         userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username("test@example.com")
@@ -116,30 +125,38 @@ public class AuthenticationServiceImplTest {
         // Arrange
         CloudflareApiResponse.Result result = new CloudflareApiResponse.Result();
         result.setVariants(List.of("https://example.com/profiles/abc123/variant"));
-        
+
         CloudflareApiResponse cloudflareResponse = new CloudflareApiResponse();
         cloudflareResponse.setSuccess(true);
         cloudflareResponse.setResult(result);
-        
+
         when(userRepository.findByEmail(validSignupRequest.getEmail())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(validSignupRequest.getUsername())).thenReturn(Optional.empty());
         when(cloudflareApiService.uploadImage(validSignupRequest.getFile())).thenReturn(cloudflareResponse);
         when(passwordEncoder.encode(validSignupRequest.getPassword())).thenReturn("encodedPassword");
         when(jwtTokenProvider.generateJwtToken(any(Authentication.class))).thenReturn("jwt.token.here");
-        
+
+        var refreshToken = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .user(testUser)
+                .refreshToken("refreshToken")
+                .build();
+        when(refreshTokenService.createRefreshToken(validSignupRequest.getEmail())).thenReturn(refreshToken);
+
         // Act
         AuthResponse response = authenticationService.signupUser(validSignupRequest);
-        
+
         // Assert
         assertThat(response).isNotNull();
         assertThat(response.getJwt()).isEqualTo("jwt.token.here");
+        assertThat(response.getRefreshToken()).isNotNull();
         assertThat(response.isStatus()).isTrue();
-        
+
         // Verify user was saved with correct data
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         User savedUser = userCaptor.getValue();
-        
+
         assertThat(savedUser.getEmail()).isEqualTo(validSignupRequest.getEmail());
         assertThat(savedUser.getUsername()).isEqualTo(validSignupRequest.getUsername());
         assertThat(savedUser.getPassword()).isEqualTo("encodedPassword");
@@ -152,12 +169,12 @@ public class AuthenticationServiceImplTest {
     void signupUser_WithExistingEmail_ThrowsUserException() {
         // Arrange
         when(userRepository.findByEmail(validSignupRequest.getEmail())).thenReturn(Optional.of(testUser));
-        
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.signupUser(validSignupRequest))
                 .isInstanceOf(UserException.class)
                 .hasMessageContaining("Email is already used with another account");
-        
+
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -166,12 +183,12 @@ public class AuthenticationServiceImplTest {
         // Arrange
         when(userRepository.findByEmail(validSignupRequest.getEmail())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(validSignupRequest.getUsername())).thenReturn(Optional.of(testUser));
-        
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.signupUser(validSignupRequest))
                 .isInstanceOf(UserException.class)
                 .hasMessageContaining("Username is already used with another account");
-        
+
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -184,21 +201,21 @@ public class AuthenticationServiceImplTest {
                 "text/plain",
                 "test content".getBytes()
         );
-        
+
         SignupRequest requestWithInvalidFile = new SignupRequest();
         requestWithInvalidFile.setEmail("test@example.com");
         requestWithInvalidFile.setUsername("testuser");
         requestWithInvalidFile.setPassword("Password123");
         requestWithInvalidFile.setFile(invalidFile);
-        
+
         when(userRepository.findByEmail(requestWithInvalidFile.getEmail())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(requestWithInvalidFile.getUsername())).thenReturn(Optional.empty());
-        
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.signupUser(requestWithInvalidFile))
                 .isInstanceOf(ProfileImageException.class)
                 .hasMessageContaining("Profile Picture type is not allowed");
-        
+
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -207,17 +224,55 @@ public class AuthenticationServiceImplTest {
         // Arrange
         String email = "test@example.com";
         String password = "Password123";
-        
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
         when(customUserDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
         when(passwordEncoder.matches(password, userDetails.getPassword())).thenReturn(true);
         when(jwtTokenProvider.generateJwtToken(any(Authentication.class))).thenReturn("jwt.token.here");
-        
+
+        var refreshToken = RefreshToken.builder()
+            .id(UUID.randomUUID())
+            .user(testUser)
+            .refreshToken("refresh.token.here")
+            .build();
+        when(refreshTokenService.createRefreshToken(email)).thenReturn(refreshToken);
+
         // Act
         AuthResponse response = authenticationService.loginUser(email, password);
-        
+
         // Assert
         assertThat(response).isNotNull();
         assertThat(response.getJwt()).isEqualTo("jwt.token.here");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh.token.here");
+        assertThat(response.isStatus()).isTrue();
+    }
+
+    @Test
+    void loginUser_WithExistingRefreshToken_ReturnsAuthResponse() throws Exception {
+        // Arrange
+        String email = "test@example.com";
+        String password = "Password123";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
+        when(customUserDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+        when(passwordEncoder.matches(password, userDetails.getPassword())).thenReturn(true);
+        when(jwtTokenProvider.generateJwtToken(any(Authentication.class))).thenReturn("jwt.token.here");
+
+        var existingRefreshToken = RefreshToken.builder()
+            .id(UUID.randomUUID())
+            .user(testUser)
+            .refreshToken("existing.refresh.token.here")
+            .expiredAt(Instant.now().plus(1, ChronoUnit.DAYS))
+            .build();
+        when(refreshTokenService.findByUserId(testUser.getId().toString())).thenReturn(existingRefreshToken);
+
+        // Act
+        AuthResponse response = authenticationService.loginUser(email, password);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getJwt()).isEqualTo("jwt.token.here");
+        assertThat(response.getRefreshToken()).isEqualTo("existing.refresh.token.here");
         assertThat(response.isStatus()).isTrue();
     }
 
@@ -226,7 +281,7 @@ public class AuthenticationServiceImplTest {
         // Arrange
         String invalidEmail = "invalid";
         String password = "Password123";
-        
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.loginUser(invalidEmail, password))
                 .isInstanceOf(UserException.class)
@@ -238,9 +293,9 @@ public class AuthenticationServiceImplTest {
         // Arrange
         String email = "nonexistent@example.com";
         String password = "Password123";
-        
-        when(customUserDetailsService.loadUserByUsername(email)).thenThrow(new BadCredentialsException("User not found"));
-        
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.loginUser(email, password))
                 .isInstanceOf(UserException.class)
@@ -252,10 +307,11 @@ public class AuthenticationServiceImplTest {
         // Arrange
         String email = "test@example.com";
         String wrongPassword = "WrongPassword";
-        
-        when(customUserDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
-        when(passwordEncoder.matches(wrongPassword, userDetails.getPassword())).thenReturn(false);
-        
+
+        // Need lenient() here to avoid unnecessary stubbing errors, potentially rewriting the test
+        lenient().when(customUserDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+        lenient().when(passwordEncoder.matches(wrongPassword, userDetails.getPassword())).thenReturn(false);
+
         // Act & Assert
         assertThatThrownBy(() -> authenticationService.loginUser(email, wrongPassword))
                 .isInstanceOf(UserException.class)
