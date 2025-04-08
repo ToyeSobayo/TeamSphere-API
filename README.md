@@ -36,7 +36,7 @@ Features
 ### Prerequisites
 Before you begin, ensure you have the following installed on your system:
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven
 - Docker and Docker Compose
 - MySQL
@@ -135,7 +135,7 @@ openssl pkcs8 -in keypair.pem -topk8 -nocrypt -inform PEM -outform PEM -out priv
 
 ## M-Chip MAC users
    If you are on mac with M silicone then you need to update the image in the docker file to
-    ```FROM arm64v8/eclipse-temurin:17 as build ```
+    ```FROM arm64v8/eclipse-temurin:21 as build ```
 ### To be added soon
 1. API Documentation
 2. Deployment
