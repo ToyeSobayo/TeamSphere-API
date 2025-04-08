@@ -282,7 +282,7 @@ public class AuthController {
             }
 
             // Load UserDetails and set authentication context
-            Authentication authentication = new UsernamePasswordAuthenticationToken(googleUser, null);
+            Authentication authentication = new UsernamePasswordAuthenticationToken(email, null);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             // Generate JWT token
