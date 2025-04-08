@@ -144,7 +144,7 @@ public class AuthController {
         } catch (BadCredentialsException e) {
             log.warn("Authentication failed for user with username: {}", loginRequest.getEmail());
             throw new UserException("Invalid username or password.");
-        } catch (Exception e) {
+        } catch (UserException e) {
             log.error("Unexpected error during login process", e);
             throw new UserException("Unexpected error during login process.");
         }

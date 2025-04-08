@@ -9,12 +9,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import co.teamsphere.api.config.properties.AppProperties;
+import co.teamsphere.api.config.properties.Argon2Properties;
+import co.teamsphere.api.config.properties.JwtProperties;
 
 @Configuration
 public class AppConfiguration {
@@ -49,8 +53,14 @@ public class AppConfiguration {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public PasswordEncoder passwordEncoder(Argon2Properties argon2Properties) {
+        return new Argon2PasswordEncoder(
+            argon2Properties.getSaltLength(), // size in bytes for salting length
+            argon2Properties.getHashLength(), // size in bytes for hashing length
+            argon2Properties.getParallelism(), // number of threads (we only need 1 in java apparetly)
+            argon2Properties.getMemoryCost(), // 64 mb in kb
+            argon2Properties.getIterations() // number of iterations
+        );
     }
 
     @Bean

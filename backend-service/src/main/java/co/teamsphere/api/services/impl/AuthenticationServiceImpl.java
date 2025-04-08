@@ -1,5 +1,6 @@
 package co.teamsphere.api.services.impl;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
@@ -25,7 +26,6 @@ import co.teamsphere.api.response.AuthResponse;
 import co.teamsphere.api.response.CloudflareApiResponse;
 import co.teamsphere.api.services.AuthenticationService;
 import co.teamsphere.api.services.CloudflareApiService;
-
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -109,15 +109,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             return new AuthResponse(token, true);
         }
         catch (UserException e) {
-            // TODO: think about returning a response and not throwing an error in a catch block
             log.error("Error during signup process", e);
-            throw e; // Rethrow specific exception to be handled by global exception handler
+            throw e;
         }
         catch (ProfileImageException e){
             log.error("ERROR: {}", e.getMessage());
             throw new ProfileImageException(e.getMessage());
-        }
-        catch (Exception e) {
+        } catch (IOException e) {
             log.error("Unexpected error during signup process", e);
             throw new UserException("Unexpected error during signup process");
         }
@@ -143,7 +141,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (BadCredentialsException e) {
             log.warn("Authentication failed for user with username: {}", email);
             throw new UserException("Invalid username or password.");
-        } catch (Exception e) {
+        } catch (UserException e) {
             log.error("Unexpected error during login process", e);
             throw new UserException("Unexpected error during login process.");
         }
