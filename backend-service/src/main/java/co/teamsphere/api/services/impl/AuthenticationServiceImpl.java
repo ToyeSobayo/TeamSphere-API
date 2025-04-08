@@ -129,8 +129,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             log.error("Authentication failed for user with username: {}", request.getEmail());
             throw new BadCredentialsException("Invalid username or password.", e);
         } catch (ProfileImageException e){
-            log.error("ERROR: {}", e.getMessage());
-            throw new ProfileImageException(e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Unexpected error during signup process", e);
             throw new UserException("Unexpected error during signup process");
@@ -170,7 +169,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (BadCredentialsException e) {
             log.warn("Authentication failed for user with username: {}", email);
             throw new UserException("Invalid username or password.");
-        } catch (Exception e) {
+        } catch (UserException e) {
             log.error("Unexpected error during login process", e);
             throw new UserException("Unexpected error during login process.");
         }

@@ -1,25 +1,26 @@
 package co.teamsphere.api.config;
+import java.io.IOException;
 import java.security.PublicKey;
 import java.util.List;
-import java.io.IOException;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
-import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.security.core.GrantedAuthority;
 
+import co.teamsphere.api.config.properties.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JWTTokenValidator extends OncePerRequestFilter {
@@ -32,9 +33,10 @@ public class JWTTokenValidator extends OncePerRequestFilter {
         this.jwtProperties = jwtProperties;
     }
 
+    @SuppressWarnings("null")
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
+            @NotNull HttpServletRequest request,
             @NotNull HttpServletResponse response,
             @NotNull FilterChain filterChain
     ) throws ServletException, IOException {
@@ -73,7 +75,7 @@ public class JWTTokenValidator extends OncePerRequestFilter {
                 log.warn("Invalid JWT token: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
                 return;
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
                 log.error("Unexpected error during JWT validation: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unexpected error during JWT validation");
                 return;

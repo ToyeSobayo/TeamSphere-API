@@ -1,5 +1,6 @@
 package co.teamsphere.api.services.impl;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
@@ -21,7 +22,6 @@ import co.teamsphere.api.request.UpdateUserRequest;
 import co.teamsphere.api.response.CloudflareApiResponse;
 import co.teamsphere.api.services.CloudflareApiService;
 import co.teamsphere.api.services.UserService;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -73,7 +73,7 @@ public class UserServiceImpl implements UserService {
                 }
 
                 responseEntity = cloudflareApiService.uploadImage(req.getProfile_picture());
-                if (!responseEntity.isSuccess() || responseEntity == null || responseEntity.getResult() == null || responseEntity.getResult().getVariants() == null || responseEntity.getResult().getVariants().isEmpty()) {
+                if (!responseEntity.isSuccess() || responseEntity.getResult() == null || responseEntity.getResult().getVariants() == null || responseEntity.getResult().getVariants().isEmpty()) {
                     log.warn("Error uploading new profile picture to Cloudflare");
                     throw new ProfileImageException("Error uploading new profile picture to Cloudflare");
                 }
@@ -90,14 +90,15 @@ public class UserServiceImpl implements UserService {
             log.info("User updated successfully. Updated user details: {}", updatedUser);
     
             return updatedUser;
-        }
-        catch (ProfileImageException e) {
+        } catch (ProfileImageException e) {
             log.error("Error updating user profile image: {}", e.getMessage());
             throw new UserException("Error updating user: " + e.getMessage());
-        }
-        catch (Exception e) {
+        } catch (UserException e) {
             log.error("Error updating user: {}", e.getMessage());
             throw new UserException("Error updating user: " + e.getMessage());
+        } catch (IOException e) {
+            log.error("Unexpected error during user update: {}", e.getMessage());
+            throw new UserException("Unexpected error during user update!");
         }
     }
 
