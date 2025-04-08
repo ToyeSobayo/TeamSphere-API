@@ -58,10 +58,6 @@ public class JWTTokenValidator extends OncePerRequestFilter {
                 if (!jwtProperties.getAudience().equals(audience)) {
                     throw new JwtException("Invalid audience: " + audience);
                 }
-                var httpRequest = (HttpServletRequest) request;
-                String ipAddr = httpRequest.getRemoteAddr();
-
-                log.info("request from this IP: {}", ipAddr);
 
                 String username = claim.getSubject();
                 String authorities = claim.get("authorities", String.class);
