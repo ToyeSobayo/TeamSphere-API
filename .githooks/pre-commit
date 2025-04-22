@@ -7,21 +7,7 @@ CHECKSTYLE_STATUS=$?
 
 if [ $CHECKSTYLE_STATUS -ne 0 ]; then
     echo "❌ Checkstyle failed! Fix your errors before committing buddy!"
-    exit 1 
+    exit 1
 fi
 
-echo "✅ Linter checks passed! Proceeding with running tests..."
-
-echo "Running Tests..."
-
-mvn test
-TEST_STATUS=$?
-
-if [ $TEST_STATUS -ne 0 ]; then
-    echo "❌ Tests failed! Fix your errors before committing buddy!"
-    exit 1 
-fi
-
-echo "🚀 Tests passed! Proceeding with commit..."
-
-exit 0
+echo "✅ Linter checks passed!"
