@@ -130,3 +130,4 @@ jobs:
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             docker pull bravinr/teamsphere:$IMAGE_DEV_VERSION
             docker compose up -d --force-recreate spring-app-dev
+            docker compose up -d --force-recreate nginx
