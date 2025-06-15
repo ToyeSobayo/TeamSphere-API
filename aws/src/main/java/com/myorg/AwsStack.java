@@ -17,22 +17,13 @@ public class AwsStack extends Stack {
     public AwsStack(final Construct scope, final String id, final StackProps props) {
         super(scope, id, props);
 
-        // Clarify any assumptions concerning the bucket
+        String bucketName = System.getenv("S3_BUCKET_NAME");
         Bucket uploadBucket = new Bucket(this, "TeamSphereUploadBucket", BucketProps.builder()
-            .bucketName("teamsphere-upload-bucket")
+            .bucketName(bucketName)
             .versioned(true)
             .removalPolicy(RemovalPolicy.DESTROY)
             .autoDeleteObjects(true)
             .build()
         );
-
-        // The code that defines your stack goes here
-
-
-
-        // example resource
-        // final Queue queue = Queue.Builder.create(this, "AwsQueue")
-        //         .visibilityTimeout(Duration.seconds(300))
-        //         .build();
     }
 }
